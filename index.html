@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pemesanan Makanan - Dapur Bunda Bahagia</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Dapur Bunda Bahagia</h1>
+  </header>
+
+  <main>
+    <section id="menu">
+      <h2>Menu</h2>
+      <div id="menuButtons">
+        <button id="showAll">Semua</button>
+        <button id="showMakanan">Makanan</button>
+        <button id="showMinuman">Minuman</button>
+        <button id="showAppetizer">Appetizer</button>
+      </div>
+      <div id="foodMenu">
+        <!-- Menu items will be populated here by JavaScript -->
+      </div>
+    </section>
+
+    <section id="orderSection">
+      <h2>Keranjang Pesanan</h2>
+      <div id="orderList">
+        <p>Belum ada pesanan</p>
+      </div>
+      <button id="checkoutButton">Checkout</button>
+    </section>
+
+    <section id="paymentSection" style="display: none;">
+      <h2>Pembayaran</h2>
+      <button id="editOrderButton" style="background-color: #2196F3; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-bottom: 10px;">Edit Pesanan</button>
+      <div id="receipt"></div>
+      <form id="paymentForm">
+        <label for="paymentMethod">Metode Pembayaran:</label>
+        <select id="paymentMethod">
+          <option value="tunai">Tunai</option>
+          <option value="debit">Debit</option>
+          <option value="kredit">Kartu Kredit</option>
+        </select>
+        <br>
+        <div id="tunaiAmount">
+          <label for="amountPaid">Jumlah Bayar:</label>
+          <input type="number" id="amountPaid" required>
+          <br>
+        </div>
+        <div id="paymentGateway" style="display: none;">
+          <label for="cardNumber">Nomor Kartu:</label>
+          <input type="text" id="cardNumber" maxlength="16" placeholder="1234 5678 9012 3456" required>
+          <br>
+          <label for="expiryDate">Tanggal Kadaluarsa:</label>
+          <input type="month" id="expiryDate" required>
+          <br>
+          <label for="cvv">CVV:</label>
+          <input type="text" id="cvv" maxlength="3" placeholder="123" required>
+          <br>
+        </div>
+        <button type="submit">Bayar</button>
+      </form>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
