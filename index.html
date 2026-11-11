@@ -1,70 +1,120 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pemesanan Makanan - Dapur Bunda Bahagia</title>
+  <title>Dapur Bunda Bahagia | Pesan Katering Rumahan</title>
+  <meta name="description" content="Pesan menu katering rumahan Dapur Bunda Bahagia: makanan, minuman, dan appetizer dengan stok real-time.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23e85d4f'/%3E%3Ctext x='32' y='43' font-size='30' text-anchor='middle' fill='white' font-family='Arial' font-weight='700'%3EDB%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
-  <header>
-    <h1>Dapur Bunda Bahagia</h1>
+<body class="shop">
+  <header class="hero">
+    <nav class="topnav wrap">
+      <a class="brand" href="#"><span class="brand-mark">DB</span> Dapur Bunda Bahagia</a>
+      <a class="nav-link" href="admin.html">Panel admin →</a>
+    </nav>
+    <div class="hero-body wrap">
+      <span class="eyebrow">Katering rumahan · Dimasak hangat setiap hari</span>
+      <h1>Masakan rumah yang bikin <em>bahagia</em>.</h1>
+      <p>Pilih menu favorit, atur jumlahnya, lalu bayar dalam satu langkah. Stok diperbarui langsung setiap ada pesanan.</p>
+      <a class="btn btn-light" href="#menu">Lihat menu</a>
+    </div>
   </header>
 
-  <main>
-    <section id="menu">
-      <h2>Menu</h2>
-      <div id="menuButtons">
-        <button id="showAll">Semua</button>
-        <button id="showMakanan">Makanan</button>
-        <button id="showMinuman">Minuman</button>
-        <button id="showAppetizer">Appetizer</button>
+  <main class="wrap layout">
+    <section id="menu" class="menu" aria-labelledby="menuTitle">
+      <div class="menu-head">
+        <h2 id="menuTitle">Menu hari ini</h2>
+        <label class="search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+          <input id="searchInput" type="search" placeholder="Cari menu…" aria-label="Cari menu">
+        </label>
       </div>
-      <div id="foodMenu">
-        <!-- Menu items will be populated here by JavaScript -->
+      <div class="chips" id="menuButtons" role="group" aria-label="Kategori">
+        <button class="chip on" data-cat="">Semua</button>
+        <button class="chip" data-cat="Makanan">Makanan</button>
+        <button class="chip" data-cat="Minuman">Minuman</button>
+        <button class="chip" data-cat="Appetizer">Appetizer</button>
+      </div>
+      <div id="foodMenu" class="grid" aria-live="polite">
+        <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
       </div>
     </section>
 
-    <section id="orderSection">
-      <h2>Keranjang Pesanan</h2>
-      <div id="orderList">
-        <p>Belum ada pesanan</p>
+    <aside id="cartPanel" class="cart" aria-labelledby="cartTitle">
+      <div class="cart-head">
+        <h2 id="cartTitle">Keranjang</h2>
+        <button class="icon-btn cart-close" id="cartClose" aria-label="Tutup keranjang">✕</button>
       </div>
-      <button id="checkoutButton">Checkout</button>
-    </section>
-
-    <section id="paymentSection" style="display: none;">
-      <h2>Pembayaran</h2>
-      <button id="editOrderButton" style="background-color: #2196F3; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-bottom: 10px;">Edit Pesanan</button>
-      <div id="receipt"></div>
-      <form id="paymentForm">
-        <label for="paymentMethod">Metode Pembayaran:</label>
-        <select id="paymentMethod">
-          <option value="tunai">Tunai</option>
-          <option value="debit">Debit</option>
-          <option value="kredit">Kartu Kredit</option>
-        </select>
-        <br>
-        <div id="tunaiAmount">
-          <label for="amountPaid">Jumlah Bayar:</label>
-          <input type="number" id="amountPaid" required>
-          <br>
-        </div>
-        <div id="paymentGateway" style="display: none;">
-          <label for="cardNumber">Nomor Kartu:</label>
-          <input type="text" id="cardNumber" maxlength="16" placeholder="1234 5678 9012 3456" required>
-          <br>
-          <label for="expiryDate">Tanggal Kadaluarsa:</label>
-          <input type="month" id="expiryDate" required>
-          <br>
-          <label for="cvv">CVV:</label>
-          <input type="text" id="cvv" maxlength="3" placeholder="123" required>
-          <br>
-        </div>
-        <button type="submit">Bayar</button>
-      </form>
-    </section>
+      <div id="orderList" class="cart-list"></div>
+      <div class="cart-foot">
+        <div class="row"><span>Subtotal</span><b id="cartTotal">Rp 0</b></div>
+        <button id="checkoutButton" class="btn btn-primary btn-block" disabled>Checkout</button>
+      </div>
+    </aside>
   </main>
+
+  <button id="cartBar" class="cart-bar" hidden>
+    <span><b id="cartBarCount">0 item</b> · <span id="cartBarTotal">Rp 0</span></span>
+    <span>Lihat keranjang →</span>
+  </button>
+  <div id="cartBackdrop" class="backdrop" hidden></div>
+
+  <!-- Checkout -->
+  <div id="checkoutModal" class="modal-bg" hidden>
+    <form id="paymentForm" class="modal" novalidate>
+      <div class="modal-head">
+        <h3>Pembayaran</h3>
+        <button type="button" class="icon-btn" data-close aria-label="Tutup">✕</button>
+      </div>
+      <div id="receipt" class="summary"></div>
+      <fieldset class="methods">
+        <legend>Metode pembayaran</legend>
+        <label><input type="radio" name="method" value="tunai" checked><span>Tunai</span></label>
+        <label><input type="radio" name="method" value="qris"><span>QRIS</span></label>
+        <label><input type="radio" name="method" value="debit"><span>Kartu debit</span></label>
+      </fieldset>
+      <div id="tunaiAmount" class="pay-box">
+        <label for="amountPaid">Uang yang dibayar</label>
+        <input type="text" inputmode="numeric" id="amountPaid" placeholder="Contoh: 50.000" autocomplete="off">
+        <div class="quick" id="quickCash"></div>
+        <p class="change" id="changeInfo"></p>
+      </div>
+      <div id="paymentGateway" class="pay-box" hidden>
+        <div class="qr" aria-hidden="true"></div>
+        <p class="muted" id="gatewayText">Simulasi pembayaran non-tunai. Tidak ada data kartu yang diminta atau disimpan.</p>
+      </div>
+      <p class="form-error" id="payError" role="alert"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn" data-close>Ubah pesanan</button>
+        <button type="submit" class="btn btn-primary" id="payButton">Bayar</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Struk -->
+  <div id="receiptModal" class="modal-bg" hidden>
+    <div class="modal receipt-card" role="dialog" aria-labelledby="receiptTitle">
+      <div class="check">✓</div>
+      <h3 id="receiptTitle">Pesanan diterima!</h3>
+      <div id="receiptBody"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn" onclick="window.print()">Cetak struk</button>
+        <button type="button" class="btn btn-primary" data-close>Pesan lagi</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+
+  <footer class="footer wrap">
+    <p>© <span id="year"></span> Dapur Bunda Bahagia · Node.js, Express, MySQL</p>
+    <p class="muted" id="demoNote"></p>
+  </footer>
 
   <script src="script.js"></script>
 </body>

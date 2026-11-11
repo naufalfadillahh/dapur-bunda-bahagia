@@ -161,7 +161,7 @@ app.put('/api/products/:id', upload.single('image'), (req, res) => {
 app.post('/api/orders', (req, res) => {
   const { items, totalAmount, paymentMethod } = req.body;
   const query = 'INSERT INTO orders (total_amount, payment_method, status) VALUES (?, ?, ?)';
-  db.query(query, [totalAmount, paymentMethod, 'completed'], (err, result) => {
+  db.query(query, [totalAmount, paymentMethod, 'pending'], (err, result) => {
     if (err) return res.status(500).json({ error: err.message });
     const orderId = result.insertId;
     // Insert order items

@@ -1,102 +1,117 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin - Dapur Bunda Bahagia</title>
+  <title>Panel Admin | Dapur Bunda Bahagia</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23e85d4f'/%3E%3Ctext x='32' y='43' font-size='30' text-anchor='middle' fill='white' font-family='Arial' font-weight='700'%3EDB%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header>
-    <h1>Admin Panel - Dapur Bunda Bahagia</h1>
-  </header>
+<div class="admin">
+  <aside class="side" id="sidebar">
+    <a class="brand" href="index.html"><span class="brand-mark">DB</span> Admin</a>
+    <button class="nav-btn active" data-section="overview">Ringkasan</button>
+    <button class="nav-btn" data-section="ordersManagement">Pesanan <span class="count" id="pendingCount">0</span></button>
+    <button class="nav-btn" data-section="stockManagement">Produk &amp; stok</button>
+    <button class="nav-btn" data-section="addProduct">Tambah produk</button>
+    <button class="nav-btn" data-section="reports">Laporan</button>
+    <a class="back" href="index.html">← Ke halaman toko</a>
+  </aside>
 
-  <div id="sidebar">
-    <nav>
-      <button class="nav-btn active" data-section="addProduct">Tambah Produk Baru</button>
-      <button class="nav-btn" data-section="stockManagement">Kelola Stok Produk</button>
-      <button class="nav-btn" data-section="reports">Laporan Penjualan</button>
-      <button class="nav-btn" data-section="ordersManagement">Pesanan Masuk</button>
-    </nav>
-  </div>
+  <main class="admin-main" id="main-content">
+    <div class="demo-banner" id="demoBanner" hidden>Mode demo: pesanan dan stok tersimpan sementara. Tambah, ubah, dan hapus produk dinonaktifkan di versi online.</div>
 
-  <main id="main-content">
-    <section id="addProduct" class="section active">
-      <h2>Tambah Produk Baru</h2>
-      <form id="addProductForm" enctype="multipart/form-data">
-        <label for="productName">Nama Produk:</label>
-        <input type="text" id="productName" name="name" required><br><br>
-        <label for="productPrice">Harga:</label>
-        <input type="number" id="productPrice" name="price" step="0.01" required><br><br>
-        <label for="productCategory">Kategori:</label>
-        <select id="productCategory" name="category" required>
-          <option value="Makanan">Makanan</option>
-          <option value="Minuman">Minuman</option>
-          <option value="Appetizer">Appetizer</option>
-        </select><br><br>
-        <label for="productStock">Stok:</label>
-        <input type="number" id="productStock" name="stock_quantity" min="0" required><br><br>
-        <label for="productImage">Gambar:</label>
-        <input type="file" id="productImage" name="image" accept="image/*"><br><br>
-        <button type="submit">Tambah Produk</button>
+    <!-- Ringkasan -->
+    <section id="overview" class="section">
+      <div class="page-head"><h1>Ringkasan</h1><button class="btn btn-sm" id="refreshAll">Muat ulang</button></div>
+      <div class="stats">
+        <div class="stat"><b id="statToday">Rp 0</b><span>Penjualan hari ini</span></div>
+        <div class="stat"><b id="statWeek">Rp 0</b><span>Penjualan 7 hari</span></div>
+        <div class="stat"><b id="statPending">0</b><span>Pesanan menunggu</span></div>
+        <div class="stat"><b id="statLow">0</b><span>Produk stok menipis</span></div>
+      </div>
+      <div class="panel">
+        <h2>Produk terlaris</h2>
+        <div class="bars" id="bestSellers"></div>
+      </div>
+    </section>
+
+    <!-- Pesanan -->
+    <section id="ordersManagement" class="section hidden">
+      <div class="page-head"><h1>Pesanan</h1><button class="btn btn-sm" id="fetchOrders">Muat ulang</button></div>
+      <div class="seg" id="orders-sub-sidebar">
+        <button class="sub-nav-btn active" data-sub="pending">Menunggu konfirmasi</button>
+        <button class="sub-nav-btn" data-sub="completed">Selesai</button>
+      </div>
+      <div id="pendingOrders" class="sub-section"><div id="pendingOrdersList"></div></div>
+      <div id="completedOrders" class="sub-section hidden"><div id="completedOrdersList"></div></div>
+    </section>
+
+    <!-- Produk -->
+    <section id="stockManagement" class="section hidden">
+      <div class="page-head"><h1>Produk &amp; stok</h1></div>
+      <div class="panel table-wrap">
+        <table class="tbl">
+          <thead><tr><th>Produk</th><th>Kategori</th><th>Harga</th><th>Stok</th><th></th></tr></thead>
+          <tbody id="productsList"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Tambah produk -->
+    <section id="addProduct" class="section hidden">
+      <div class="page-head"><h1>Tambah produk</h1></div>
+      <form id="addProductForm" class="panel" enctype="multipart/form-data">
+        <div class="form-grid">
+          <div class="field full"><label for="productName">Nama produk</label><input type="text" id="productName" name="name" required placeholder="Contoh: Nasi Uduk"></div>
+          <div class="field"><label for="productPrice">Harga (Rp)</label><input type="number" id="productPrice" name="price" min="0" step="500" required placeholder="20000"></div>
+          <div class="field"><label for="productCategory">Kategori</label>
+            <select id="productCategory" name="category" required><option value="Makanan">Makanan</option><option value="Minuman">Minuman</option><option value="Appetizer">Appetizer</option></select></div>
+          <div class="field"><label for="productStock">Stok awal</label><input type="number" id="productStock" name="stock_quantity" min="0" required placeholder="10"></div>
+          <div class="field"><label for="productImage">Foto produk</label><input type="file" id="productImage" name="image" accept="image/*"></div>
+        </div>
+        <div class="modal-actions"><button type="submit" class="btn btn-primary">Simpan produk</button></div>
       </form>
     </section>
 
-    <section id="stockManagement" class="section hidden">
-      <h2>Kelola Stok Produk</h2>
-      <div id="productsList"></div>
-    </section>
-
+    <!-- Laporan -->
     <section id="reports" class="section hidden">
-      <h2>Laporan Penjualan</h2>
-      <button id="weeklyReport">Laporan Mingguan</button>
-      <button id="monthlyReport">Laporan Bulanan</button>
-      <button id="resetReport">Reset Laporan</button>
-      <div id="reportResult"></div>
-    </section>
-
-    <section id="ordersManagement" class="section hidden">
-      <div id="orders-sub-sidebar">
-        <button class="sub-nav-btn active" data-sub="pending">Pesanan Masuk (Pending)</button>
-        <button class="sub-nav-btn" data-sub="completed">Pesanan Selesai (Completed)</button>
+      <div class="page-head">
+        <h1>Laporan penjualan</h1>
+        <div class="seg" style="margin:0">
+          <button class="active" id="weeklyReport">7 hari</button>
+          <button id="monthlyReport">30 hari</button>
+        </div>
       </div>
-      <div id="pendingOrders" class="sub-section active">
-        <h2>Pesanan Masuk (Belum Dikonfirmasi)</h2>
-        <div id="pendingOrdersList"></div>
+      <div class="panel">
+        <div id="reportResult"></div>
       </div>
-      <div id="completedOrders" class="sub-section hidden">
-        <h2>Pesanan Sudah Dikonfirmasi</h2>
-        <div id="completedOrdersList"></div>
-      </div>
-      <button id="fetchOrders">Muat Ulang Pesanan</button>
+      <button class="btn btn-sm btn-danger" id="resetReport">Reset laporan</button>
     </section>
   </main>
+</div>
 
-  <!-- Edit Product Modal -->
-  <div id="editModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
-    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; width: 400px;">
-      <h3>Edit Product</h3>
-      <form id="editProductForm" enctype="multipart/form-data">
-        <label for="editName">Nama Produk:</label>
-        <input type="text" id="editName" name="name" required><br><br>
-        <label for="editPrice">Harga:</label>
-        <input type="number" id="editPrice" name="price" step="0.01" required><br><br>
-        <label for="editCategory">Kategori:</label>
-        <select id="editCategory" name="category" required>
-          <option value="Makanan">Makanan</option>
-          <option value="Minuman">Minuman</option>
-          <option value="Appetizer">Appetizer</option>
-        </select><br><br>
-        <label for="editStock">Stok:</label>
-        <input type="number" id="editStock" name="stock_quantity" min="0" required><br><br>
-        <label for="editImage">Gambar Baru (opsional):</label>
-        <input type="file" id="editImage" name="image" accept="image/*"><br><br>
-        <button type="submit">Update Produk</button>
-        <button type="button" onclick="closeEditModal()">Batal</button>
-      </form>
+<!-- Edit produk -->
+<div id="editModal" class="modal-bg edit-modal" hidden>
+  <form id="editProductForm" class="modal" enctype="multipart/form-data">
+    <div class="modal-head"><h3>Edit produk</h3><button type="button" class="icon-btn" onclick="closeEditModal()" aria-label="Tutup">✕</button></div>
+    <div class="form-grid">
+      <div class="field full"><label for="editName">Nama produk</label><input type="text" id="editName" name="name" required></div>
+      <div class="field"><label for="editPrice">Harga (Rp)</label><input type="number" id="editPrice" name="price" min="0" step="500" required></div>
+      <div class="field"><label for="editCategory">Kategori</label>
+        <select id="editCategory" name="category" required><option value="Makanan">Makanan</option><option value="Minuman">Minuman</option><option value="Appetizer">Appetizer</option></select></div>
+      <div class="field"><label for="editStock">Stok</label><input type="number" id="editStock" name="stock_quantity" min="0" required></div>
+      <div class="field"><label for="editImage">Foto baru (opsional)</label><input type="file" id="editImage" name="image" accept="image/*"></div>
     </div>
-  </div>
+    <div class="modal-actions"><button type="button" class="btn" onclick="closeEditModal()">Batal</button><button type="submit" class="btn btn-primary">Simpan perubahan</button></div>
+  </form>
+</div>
+<div id="toast" class="toast" role="status" hidden></div>
 
-  <script src="admin.js"></script>
+<script src="admin.js"></script>
 </body>
 </html>

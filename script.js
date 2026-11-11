@@ -1,317 +1,249 @@
-// Daftar menu makanan dari API
-let menu = [];
+// Dapur Bunda Bahagia - halaman pemesanan
+const rupiah = (n) => 'Rp ' + Math.round(Number(n) || 0).toLocaleString('id-ID');
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const capital = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : '');
 
-// Fetch menu dari API
+let menu = [];
+let cart = [];
+let filter = { cat: '', q: '' };
+
+// ---------- Data ----------
 async function fetchMenu() {
   try {
-    const response = await fetch('/api/products');
-    menu = await response.json();
+    const res = await fetch('/api/products');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    menu = (await res.json()).map((p) => ({ ...p, category: capital(p.category.trim()), price: Number(p.price), stock_quantity: Number(p.stock_quantity) }));
+    // buang item keranjang yang stoknya sudah berubah
+    cart = cart.filter((c) => menu.some((m) => m.id === c.id)).map((c) => ({ ...c, quantity: Math.min(c.quantity, stockOf(c.id)) })).filter((c) => c.quantity > 0);
     displayMenu();
-  } catch (error) {
-    console.error('Error fetching menu:', error);
+    updateCart();
+  } catch (err) {
+    console.error('Gagal memuat menu:', err);
+    $('#foodMenu').innerHTML = '<div class="empty"><p>Menu belum bisa dimuat.</p><button class="btn" onclick="fetchMenu()">Coba lagi</button></div>';
   }
 }
 
-// Menampilkan menu makanan
-function displayMenu(category = null) {
-  const foodMenu = document.getElementById('foodMenu');
-  foodMenu.innerHTML = ''; // Reset menu
+const stockOf = (id) => (menu.find((m) => m.id === id) || {}).stock_quantity || 0;
+const inCart = (id) => (cart.find((c) => c.id === id) || {}).quantity || 0;
 
-  let filteredMenu = category ? menu.filter(item => item.category.toLowerCase().trim() === category.toLowerCase().trim()) : menu;
-
-  const categories = {};
-  filteredMenu.forEach(item => {
-    if (!categories[item.category]) categories[item.category] = [];
-    categories[item.category].push(item);
-  });
-
-  for (const [cat, items] of Object.entries(categories)) {
-    const catDiv = document.createElement('div');
-    catDiv.innerHTML = `<h3>${cat.charAt(0).toUpperCase() + cat.slice(1)}</h3>`;
-    const catItems = document.createElement('div');
-    catItems.classList.add('categoryItems');
-    items.forEach(item => {
-      const foodItem = document.createElement('div');
-      foodItem.classList.add('foodItem');
-      if (item.stock_quantity <= 0) {
-        foodItem.classList.add('out-of-stock');
-      }
-      foodItem.innerHTML = `
-        <img src="${item.image_path}" alt="${item.name}">
-        <h3>${item.name}</h3>
-        <p>Rp ${item.price}</p>
-        <p>Stok: ${item.stock_quantity}</p>
-        <button onclick="addToCart(${item.id})" ${item.stock_quantity <= 0 ? 'disabled' : ''}>Tambah ke Keranjang</button>
-      `;
-      catItems.appendChild(foodItem);
-    });
-    catDiv.appendChild(catItems);
-    foodMenu.appendChild(catDiv);
+// ---------- Menu ----------
+function displayMenu() {
+  const box = $('#foodMenu');
+  const q = filter.q.toLowerCase();
+  const items = menu.filter((m) => (!filter.cat || m.category === filter.cat) && (!q || m.name.toLowerCase().includes(q)));
+  if (!items.length) {
+    box.innerHTML = '<div class="empty"><p>Tidak ada menu yang cocok.</p></div>';
+    return;
   }
+  box.innerHTML = items.map((item) => {
+    const qty = inCart(item.id);
+    const left = item.stock_quantity - qty;
+    const out = item.stock_quantity <= 0;
+    const stockText = out ? 'Habis' : left <= 3 ? `Sisa ${left}` : `Stok ${item.stock_quantity}`;
+    const action = out
+      ? '<button class="btn btn-block" disabled>Habis</button>'
+      : qty
+        ? `<div class="stepper" aria-label="Jumlah ${esc(item.name)}"><button onclick="changeQty(${item.id},-1)" aria-label="Kurangi">−</button><span>${qty}</span><button onclick="changeQty(${item.id},1)" ${left <= 0 ? 'disabled' : ''} aria-label="Tambah">+</button></div>`
+        : `<button class="btn btn-primary btn-block" onclick="addToCart(${item.id})">+ Tambah</button>`;
+    return `
+      <article class="food${out ? ' out' : ''}">
+        <div class="food-img"><img src="${esc(item.image_path)}" alt="${esc(item.name)}" loading="lazy" onerror="this.src='ASET/background.webp'"><span class="badge">${esc(item.category)}</span></div>
+        <div class="food-body">
+          <h3>${esc(item.name)}</h3>
+          <div class="food-meta"><b>${rupiah(item.price)}</b><span class="stock${!out && left <= 3 ? ' low' : ''}${out ? ' none' : ''}">${stockText}</span></div>
+          ${action}
+        </div>
+      </article>`;
+  }).join('');
 }
 
-// Keranjang belanja
-let cart = [];
-
-// Menambah produk ke keranjang
+// ---------- Keranjang ----------
 function addToCart(id) {
-  const item = menu.find(item => item.id === id);
-  if (!item || item.stock_quantity <= 0) return;
-
-  const existing = cart.find(c => c.id === id);
-  if (existing) {
-    existing.quantity += 1;
-  } else {
-    cart.push({ id: item.id, name: item.name, price: item.price, quantity: 1 });
-  }
-
+  const item = menu.find((m) => m.id === id);
+  if (!item || inCart(id) >= item.stock_quantity) { toast('Stok tidak mencukupi'); return; }
+  const existing = cart.find((c) => c.id === id);
+  if (existing) existing.quantity += 1;
+  else cart.push({ id: item.id, name: item.name, price: item.price, quantity: 1 });
   updateCart();
+  displayMenu();
+  toast(`${item.name} ditambahkan`);
 }
 
-// Menambah quantity item di keranjang
-function increaseQuantity(id) {
-  const item = cart.find(c => c.id === id);
-  if (item) {
-    item.quantity += 1;
-    updateCart();
-  }
+function changeQty(id, delta) {
+  const c = cart.find((x) => x.id === id);
+  if (!c) return;
+  if (delta > 0 && c.quantity >= stockOf(id)) { toast('Stok tidak mencukupi'); return; }
+  c.quantity += delta;
+  if (c.quantity <= 0) cart = cart.filter((x) => x.id !== id);
+  updateCart();
+  displayMenu();
 }
 
-// Mengurangi quantity item di keranjang
-function decreaseQuantity(id) {
-  const item = cart.find(c => c.id === id);
-  if (item && item.quantity > 1) {
-    item.quantity -= 1;
-    updateCart();
-  } else if (item && item.quantity === 1) {
-    removeFromCart(id);
-  }
-}
-
-// Menghapus item dari keranjang
 function removeFromCart(id) {
-  cart = cart.filter(c => c.id !== id);
+  cart = cart.filter((x) => x.id !== id);
   updateCart();
+  displayMenu();
 }
 
-// Mengupdate tampilan keranjang
+const cartTotal = () => cart.reduce((s, c) => s + c.price * c.quantity, 0);
+const cartCount = () => cart.reduce((s, c) => s + c.quantity, 0);
+
 function updateCart() {
-  const orderList = document.getElementById('orderList');
-  orderList.innerHTML = ''; // Reset order list
-
-  if (cart.length === 0) {
-    orderList.innerHTML = '<p>Belum ada pesanan</p>';
-    document.getElementById('checkoutButton').style.display = 'none';
-    return;
-  }
-
-  let total = 0;
-  cart.forEach(item => {
-    const orderItem = document.createElement('div');
-    orderItem.innerHTML = `
-      <p>${item.name} - Rp ${item.price}</p>
-      <button onclick="decreaseQuantity(${item.id})" style="background-color: #ff9800; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">-</button>
-      <span> x${item.quantity} </span>
-      <button onclick="increaseQuantity(${item.id})" style="background-color: #4CAF50; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">+</button>
-      <span> - Rp ${item.price * item.quantity}</span>
-      <button onclick="removeFromCart(${item.id})" style="background-color: #f44336; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 10px;">Hapus</button>
-    `;
-    orderList.appendChild(orderItem);
-    total += item.price * item.quantity;
-  });
-
-  const totalPrice = document.createElement('div');
-  totalPrice.innerHTML = `<strong>Total: Rp ${total}</strong>`;
-  orderList.appendChild(totalPrice);
-
-  // Menyimpan total harga untuk proses pembayaran
-  document.getElementById('checkoutButton').style.display = 'block';
-}
-
-// Hapus item dari keranjang (decrement quantity jika >1, atau hapus jika 1)
-function removeFromCart(id) {
-  const index = cart.findIndex(c => c.id === id);
-  if (index !== -1) {
-    if (cart[index].quantity > 1) {
-      cart[index].quantity -= 1;
-    } else {
-      cart.splice(index, 1);
-    }
-    updateCart();
-  }
-}
-
-// Checkout dan menampilkan form pembayaran
-document.getElementById('checkoutButton').addEventListener('click', () => {
-  if (cart.length === 0) {
-    alert('Anda belum memesan');
-    return;
-  }
-
-  document.getElementById('orderSection').style.display = 'none';
-  document.getElementById('paymentSection').style.display = 'block';
-
-  // Hitung total harga berdasarkan barang yang ada di keranjang
-  let totalAmount = 0;
-  cart.forEach(item => totalAmount += item.price * item.quantity);
-
-  // Tampilkan total harga dan daftar item yang sudah dihitung di halaman pembayaran
-  const receipt = document.getElementById('receipt');
-  receipt.innerHTML = `<p><strong>Total yang harus dibayar: Rp ${totalAmount}</strong></p><div><h3>Daftar Pesanan</h3>${cart.map(item => `<p>${item.name} x${item.quantity} - Rp ${item.price * item.quantity}</p>`).join('')}</div>`;
-
-  // Set default to tunai and initialize display
-  document.getElementById('paymentMethod').value = 'tunai';
-  document.getElementById('paymentMethod').dispatchEvent(new Event('change'));
-});
-
-// Event listener for payment method change
-document.getElementById('paymentMethod').addEventListener('change', function() {
-  const method = this.value;
-  const tunaiAmount = document.getElementById('tunaiAmount');
-  const paymentGateway = document.getElementById('paymentGateway');
-  const amountPaid = document.getElementById('amountPaid');
-  const cardNumber = document.getElementById('cardNumber');
-  const expiryDate = document.getElementById('expiryDate');
-  const cvv = document.getElementById('cvv');
-
-  if (method === 'tunai') {
-    tunaiAmount.style.display = 'block';
-    paymentGateway.style.display = 'none';
-    amountPaid.required = true;
-    // Remove required for card fields when hidden
-    if (cardNumber) cardNumber.required = false;
-    if (expiryDate) expiryDate.required = false;
-    if (cvv) cvv.required = false;
+  const list = $('#orderList');
+  if (!cart.length) {
+    list.innerHTML = '<div class="cart-empty"><span>🍽️</span><p>Keranjang masih kosong.<br>Tambahkan menu favoritmu.</p></div>';
   } else {
-    tunaiAmount.style.display = 'none';
-    paymentGateway.style.display = 'block';
-    amountPaid.required = false;
-    amountPaid.value = '';
-    // Add required for card fields when shown
-    if (cardNumber) cardNumber.required = true;
-    if (expiryDate) expiryDate.required = true;
-    if (cvv) cvv.required = true;
+    list.innerHTML = cart.map((c) => `
+      <div class="cart-item">
+        <div><b>${esc(c.name)}</b><small>${rupiah(c.price)}</small></div>
+        <div class="stepper sm"><button onclick="changeQty(${c.id},-1)" aria-label="Kurangi ${esc(c.name)}">−</button><span>${c.quantity}</span><button onclick="changeQty(${c.id},1)" aria-label="Tambah ${esc(c.name)}">+</button></div>
+        <div class="line"><b>${rupiah(c.price * c.quantity)}</b><button class="link danger" onclick="removeFromCart(${c.id})">Hapus</button></div>
+      </div>`).join('');
   }
-});
+  $('#cartTotal').textContent = rupiah(cartTotal());
+  $('#checkoutButton').disabled = !cart.length;
+  $('#cartBar').hidden = !cart.length;
+  $('#cartBarCount').textContent = `${cartCount()} item`;
+  $('#cartBarTotal').textContent = rupiah(cartTotal());
+}
 
-// Proses pembayaran
-document.getElementById('paymentForm').addEventListener('submit', (e) => {
+function openCart(open) {
+  document.body.classList.toggle('cart-open', open);
+  $('#cartBackdrop').hidden = !open;
+}
+
+// ---------- Checkout ----------
+const methodName = { tunai: 'Tunai', qris: 'QRIS', debit: 'Kartu debit' };
+const currentMethod = () => document.querySelector('input[name=method]:checked').value;
+const parseMoney = (s) => parseInt(String(s).replace(/\D/g, ''), 10) || 0;
+
+function openCheckout() {
+  if (!cart.length) return;
+  openCart(false);
+  const total = cartTotal();
+  $('#receipt').innerHTML = `
+    <ul>${cart.map((c) => `<li><span>${esc(c.name)} × ${c.quantity}</span><span>${rupiah(c.price * c.quantity)}</span></li>`).join('')}</ul>
+    <div class="row total"><span>Total</span><b>${rupiah(total)}</b></div>`;
+  const quick = [total, Math.ceil(total / 10000) * 10000, Math.ceil(total / 50000) * 50000, Math.ceil(total / 100000) * 100000]
+    .filter((v, i, a) => v >= total && a.indexOf(v) === i).slice(0, 4);
+  $('#quickCash').innerHTML = quick.map((v) => `<button type="button" class="chip" data-cash="${v}">${v === total ? 'Uang pas' : rupiah(v)}</button>`).join('');
+  $('#amountPaid').value = '';
+  document.querySelector('input[name=method][value=tunai]').checked = true;
+  syncMethod();
+  $('#payError').textContent = '';
+  $('#checkoutModal').hidden = false;
+  $('#amountPaid').focus();
+}
+
+function syncMethod() {
+  const m = currentMethod();
+  $('#tunaiAmount').hidden = m !== 'tunai';
+  $('#paymentGateway').hidden = m === 'tunai';
+  $('#gatewayText').textContent = m === 'qris'
+    ? 'Pindai kode QR dengan aplikasi pembayaran (simulasi). Tidak ada data yang dikirim ke penyedia pembayaran.'
+    : 'Simulasi pembayaran kartu debit di kasir. Tidak ada data kartu yang diminta atau disimpan.';
+  $('#paymentGateway').classList.toggle('is-qris', m === 'qris');
+  updateChange();
+}
+
+function updateChange() {
+  const paid = parseMoney($('#amountPaid').value);
+  const total = cartTotal();
+  const info = $('#changeInfo');
+  if (!paid) { info.textContent = ''; info.className = 'change'; return; }
+  if (paid < total) { info.textContent = `Kurang ${rupiah(total - paid)}`; info.className = 'change bad'; }
+  else { info.textContent = `Kembalian ${rupiah(paid - total)}`; info.className = 'change ok'; }
+}
+
+async function pay(e) {
   e.preventDefault();
+  const total = cartTotal();
+  const method = currentMethod();
+  const paid = method === 'tunai' ? parseMoney($('#amountPaid').value) : total;
+  if (method === 'tunai' && paid < total) { $('#payError').textContent = 'Jumlah uang kurang dari total belanja.'; return; }
 
-  const paymentMethod = document.getElementById('paymentMethod').value;
-
-  // Hitung total harga berdasarkan barang yang ada di keranjang
-  let totalAmount = 0;
-  cart.forEach(item => totalAmount += item.price * item.quantity);
-
-  // Validasi jumlah yang dibayar
-  if (cart.length === 0) {
-    alert('Anda belum memesan');
-    return;
-  }
-
-  let isValid = false;
-  let amountPaid = 0;
-  let message = '';
-
-  if (paymentMethod === 'tunai') {
-    const amountInput = document.getElementById('amountPaid').value;
-    amountPaid = parseInt(amountInput);
-    if (!amountInput || isNaN(amountPaid)) {
-      alert('Jumlah bayar harus diisi dengan angka yang valid!');
-      return;
-    }
-    if (amountPaid < totalAmount) {
-      alert('Jumlah bayar kurang dari total harga!');
-      return;
-    }
-    const change = amountPaid - totalAmount;
-    message = `Pembayaran tunai berhasil! Kembalian: Rp ${change}`;
-    isValid = true;
-  } else {
-    // Validasi payment gateway untuk debit/kredit
-    const cardNumber = document.getElementById('cardNumber').value.replace(/\s/g, '');
-    const expiryDate = document.getElementById('expiryDate').value;
-    const cvv = document.getElementById('cvv').value;
-
-    if (cardNumber.length !== 16 || !/^\d{16}$/.test(cardNumber)) {
-      alert('Nomor kartu harus tepat 16 digit angka!');
-      return;
-    }
-    if (!expiryDate) {
-      alert('Tanggal kadaluarsa harus diisi!');
-      return;
-    }
-    if (cvv.length !== 3 || !/^\d{3}$/.test(cvv)) {
-      alert('CVV harus tepat 3 digit angka!');
-      return;
-    }
-    message = `Pembayaran dengan ${paymentMethod} berhasil diproses melalui gateway!`;
-    isValid = true;
-  }
-
-  if (isValid) {
-    // Kirim pesanan ke API
-    fetch('/api/orders', {
+  const btn = $('#payButton');
+  btn.disabled = true; btn.textContent = 'Memproses…';
+  try {
+    const res = await fetch('/api/orders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items: cart, totalAmount, paymentMethod })
-    })
-    .then(response => response.json())
-    .then(data => {
-      const change = paymentMethod === 'tunai' ? amountPaid - totalAmount : 0;
-      const struk = `
-Nomor Pesanan: ${data.orderId}
-
-Daftar Pesanan:
-${cart.map(item => `${item.name} x${item.quantity} - Rp ${item.price * item.quantity}`).join('\n')}
-
-Total: Rp ${totalAmount}
-Metode Pembayaran: ${paymentMethod}
-${paymentMethod === 'tunai' ? `Kembalian: Rp ${change}` : ''}
-
-Pesanan Selesai!
-
-Terima kasih atas pesanannya!
-      `;
-      alert(struk);
-
-      // Kosongkan keranjang dan reset tampilan setelah pembayaran
-      cart = []; // Kosongkan keranjang setelah pembayaran
-      updateCart();
-
-      // Reset tampilan dan tampilkan kembali menu utama
-      document.getElementById('paymentSection').style.display = 'none';
-      document.getElementById('orderSection').style.display = 'block';
-
-      // Bersihkan form pembayaran dan receipt untuk mencegah riwayat sebelumnya
-      document.getElementById('amountPaid').value = '';
-      document.getElementById('cardNumber').value = '';
-      document.getElementById('expiryDate').value = '';
-      document.getElementById('cvv').value = '';
-      document.getElementById('receipt').innerHTML = '';
-
-      // Refresh menu untuk update stok
-      fetchMenu();
-    })
-    .catch(error => {
-      console.error('Error submitting order:', error);
-      alert('Terjadi kesalahan saat memproses pesanan.');
+      body: JSON.stringify({ items: cart, totalAmount: total, paymentMethod: method }),
     });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Gagal memproses pesanan');
+    showReceipt(data.orderId, total, method, paid);
+    cart = [];
+    updateCart();
+    fetchMenu();
+  } catch (err) {
+    console.error(err);
+    $('#payError').textContent = 'Pesanan gagal diproses. Coba lagi sebentar lagi.';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Bayar';
   }
+}
+
+function showReceipt(orderId, total, method, paid) {
+  const now = new Date().toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+  $('#receiptBody').innerHTML = `
+    <p class="muted">No. pesanan <b>#${esc(orderId)}</b> · ${now}</p>
+    <ul class="summary-list">${cart.map((c) => `<li><span>${esc(c.name)} × ${c.quantity}</span><span>${rupiah(c.price * c.quantity)}</span></li>`).join('')}</ul>
+    <div class="row total"><span>Total</span><b>${rupiah(total)}</b></div>
+    <div class="row"><span>Metode</span><span>${methodName[method]}</span></div>
+    ${method === 'tunai' ? `<div class="row"><span>Dibayar</span><span>${rupiah(paid)}</span></div><div class="row"><span>Kembalian</span><b>${rupiah(paid - total)}</b></div>` : ''}
+    <p class="muted thanks">Terima kasih! Pesananmu sedang disiapkan.</p>`;
+  $('#checkoutModal').hidden = true;
+  $('#receiptModal').hidden = false;
+}
+
+// ---------- Utilitas ----------
+let toastTimer;
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (t.hidden = true), 1800);
+}
+
+// ---------- Event ----------
+document.querySelectorAll('#menuButtons .chip').forEach((b) => b.addEventListener('click', () => {
+  document.querySelectorAll('#menuButtons .chip').forEach((x) => x.classList.toggle('on', x === b));
+  filter.cat = b.dataset.cat;
+  displayMenu();
+}));
+$('#searchInput').addEventListener('input', (e) => { filter.q = e.target.value.trim(); displayMenu(); });
+$('#checkoutButton').addEventListener('click', openCheckout);
+$('#cartBar').addEventListener('click', () => openCart(true));
+$('#cartClose').addEventListener('click', () => openCart(false));
+$('#cartBackdrop').addEventListener('click', () => openCart(false));
+document.querySelectorAll('input[name=method]').forEach((r) => r.addEventListener('change', syncMethod));
+$('#amountPaid').addEventListener('input', (e) => {
+  const n = parseMoney(e.target.value);
+  e.target.value = n ? n.toLocaleString('id-ID') : '';
+  $('#payError').textContent = '';
+  updateChange();
+});
+$('#quickCash').addEventListener('click', (e) => {
+  const v = e.target.dataset.cash;
+  if (!v) return;
+  $('#amountPaid').value = Number(v).toLocaleString('id-ID');
+  updateChange();
+});
+$('#paymentForm').addEventListener('submit', pay);
+document.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => { b.closest('.modal-bg').hidden = true; }));
+document.querySelectorAll('.modal-bg').forEach((m) => m.addEventListener('click', (e) => { if (e.target === m) m.hidden = true; }));
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  document.querySelectorAll('.modal-bg').forEach((m) => (m.hidden = true));
+  openCart(false);
 });
 
-// Event listeners for menu buttons
-document.getElementById('showAll').addEventListener('click', () => displayMenu());
-document.getElementById('showMakanan').addEventListener('click', () => displayMenu('Makanan'));
-document.getElementById('showMinuman').addEventListener('click', () => displayMenu('Minuman'));
-document.getElementById('showAppetizer').addEventListener('click', () => displayMenu('Appetizer'));
+$('#year').textContent = new Date().getFullYear();
+if (/vercel\.app$/.test(location.hostname)) {
+  $('#demoNote').textContent = 'Versi demo: pesanan dan stok tersimpan sementara di server dan bisa kembali ke data awal sewaktu-waktu.';
+}
 
-// Event listener for edit order button
-document.getElementById('editOrderButton').addEventListener('click', () => {
-  document.getElementById('paymentSection').style.display = 'none';
-  document.getElementById('orderSection').style.display = 'block';
-});
-
-// Memulai aplikasi
 fetchMenu();
+updateCart();
