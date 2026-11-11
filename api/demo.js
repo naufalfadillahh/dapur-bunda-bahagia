@@ -54,14 +54,19 @@ module.exports = async (req, res) => {
   }
   if (path === '/api/orders' && m === 'POST') {
     const { items = [], totalAmount, paymentMethod } = await readJson(req);
+    if (!Array.isArray(items) || !items.length) return send(400, { error: 'Keranjang kosong' });
+    for (const it of items) {
+      const p = products.find((x) => x.id === it.id);
+      if (!p || (it.quantity || 1) > p.stock_quantity) return send(400, { error: `Stok ${p ? p.name : 'produk'} tidak mencukupi` });
+    }
     const order = {
-      id: nextOrderId++, total_amount: totalAmount, payment_method: paymentMethod, status: 'completed',
+      id: nextOrderId++, total_amount: Number(totalAmount) || 0, payment_method: String(paymentMethod || 'tunai').slice(0, 20), status: 'pending',
       created_at: new Date().toISOString(),
       items: items.map((it) => ({ product_id: it.id, quantity: it.quantity || 1, price: it.price })),
     };
     orders.push(order);
     order.items.forEach((it) => { const p = products.find((x) => x.id === it.product_id); if (p) p.stock_quantity -= it.quantity; });
-    return send(200, { message: 'Order created and completed', orderId: order.id });
+    return send(200, { message: 'Order created', orderId: order.id });
   }
   const done = path.match(/^\/api\/orders\/(\d+)\/complete$/);
   if (done && m === 'PUT') {
